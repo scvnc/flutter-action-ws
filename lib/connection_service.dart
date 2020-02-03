@@ -48,7 +48,7 @@ class WsConnectionService {
   static Map<int, ActionRequest> queue = new Map();
   static Map<int, RxCommand> replyCommands = new Map();
   static Map<int, void Function(ActionRequest)> replyFunctions = new Map();
-  static Duration timeout = new Duration(seconds: 2);
+  static Duration timeout = new Duration(seconds: 30);
   static String tokenCookie;
   static String url;
 
