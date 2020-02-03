@@ -47,7 +47,7 @@ class WsConnectionService {
   // maybe no need for it to be static...
   static Map<int, ActionRequest> queue = new Map();
   static Map<int, RxCommand> replyCommands = new Map();
-  static Map<int, void Function(WsAction)> replyFunctions = new Map();
+  static Map<int, void Function(ActionRequest)> replyFunctions = new Map();
   static Duration timeout = new Duration(seconds: 2);
   static String tokenCookie;
   static String url;
@@ -111,14 +111,20 @@ class WsConnectionService {
           if (message is List<int>) {
             try {
               var responseWsAction = WsAction.fromBytes(Uint8List.fromList(message));
+              print("responseWsAction $responseWsAction");
               var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
               responseWsAction.payload = queuedActionRequest.action.payload;
               _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
               _handleReplyRxCommand(responseWsAction);
-              _handleReplyFunction(responseWsAction);
+              _handleReplyFunction(ActionRequest(ActionRequestStatus.OK, responseWsAction));
             } catch (e) {
               // TODO
-              print("Error decoding action: $e tried: $message");
+              if (e is ActionResponseException) {
+                print("====: $e tried: $message");
+                _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
+              } else {
+                print("Error decoding action: $e tried: $message");
+              }
             }
           } else if (message is String) {
             //print("TODO: decode this: $message");
@@ -155,6 +161,7 @@ class WsConnectionService {
     var id = _getNextId();
     WsAction m = new WsAction(id, actionName);
     m.payload = payload;
+    print("#k action request cmd");
     _actionRequestCmd(ActionRequest(ActionRequestStatus.NEW, m));
 
     if (connectionStatus.status == WsStatusType.DISCONNECTED) {
@@ -165,11 +172,21 @@ class WsConnectionService {
     return id;
   }
 
+  /// throws ActionResponseException, and a generic Exception for unhandled ActionRequestStatus
   Future<dynamic> actionFut(String actionName, Map<String, dynamic> payload) {
     Completer c = new Completer();
     int id = _pushAction(actionName, payload);
-    onResponse(id, (dynamic action) {
-      c.complete(action);
+    /// TODO: this should be changed to ActionResponse instead of ActionRequest
+    onResponse(id, (ActionRequest ar) {
+      if (ar.status == ActionRequestStatus.OK) {
+        c.complete(ar.action as dynamic);
+      } else if (ar.status == ActionRequestStatus.ERROR) {
+        print("there was an error: $ar");
+        //throw ("Error processing this action");
+        c.completeError(new ActionResponseException(ar.action, ar.action.error));
+      } else {
+        throw new Exception("Unhandled ActionRequestStatus");
+      }
     });
     return c.future;
   }
@@ -180,7 +197,7 @@ class WsConnectionService {
     }
   }
 
-  onResponse(int id, void Function(WsAction) f) {
+  onResponse(int id, void Function(ActionRequest) f) {
     if (queue.containsKey(id)) {
       replyFunctions[id] = f;
     }
@@ -193,10 +210,12 @@ class WsConnectionService {
     }
   }
 
-  _handleReplyFunction(WsAction a) {
-    if (replyFunctions.containsKey(a.id)) {
-      replyFunctions[a.id](a);
-      replyFunctions.remove(a.id);
+  //_handleReplyFunction(WsAction a) {
+  _handleReplyFunction(ActionRequest ar) {
+    int aid = ar.action.id;
+    if (replyFunctions.containsKey(aid)) {
+      replyFunctions[aid](ar);
+      replyFunctions.remove(aid);
     }
   }
 

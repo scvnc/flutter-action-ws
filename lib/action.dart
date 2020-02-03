@@ -2,19 +2,36 @@ import 'package:typed_data/typed_data.dart';
 import 'dart:typed_data';
 import 'package:cbor/cbor.dart' as cbor;
 
+class ActionResponseException implements Exception {
+  WsAction action;
+  String cause;
+  ActionResponseException(this.action, this.cause);
+
+  @override
+  String toString() {
+    return "ActionResponseException: ${this.cause}.  Action: ${this.action.action}";
+  }
+}
+
 class WsAction {
   final String action;
   int id;
   Map<String, dynamic> payload;
   dynamic result;
+  String error;
+
   WsAction(this.id, this.action) {
     payload = {};
     result = null;
+    error = null;
   }
 
   static WsAction fromMap(Map<String, dynamic> m) {
     var msg = new WsAction(m['id'] as int, m['action'] as String);
     msg.payload = m['payload'];
+    if (m.containsKey('error')) {
+      msg.error = m['error'];
+    }
     return msg;
   }
 
@@ -44,9 +61,12 @@ class WsAction {
     cbor.Cbor inst = new cbor.Cbor();
     inst.decodeFromBuffer(buf);
     var msg = inst.getDecodedData()[0];
+    print("MSG: $msg");
     WsAction m = new WsAction(msg['id'] as int, msg['action'] as String);
-    bool containskey = msg.containsKey('result');
-    if (containskey) {
+    if (msg.containsKey('error')) {
+      m.error = msg['error'] as String;
+      throw new ActionResponseException(m, msg['error'] as String);
+    } else if (msg.containsKey('result')) {
       m.result = msg['result'] as dynamic;
     }
     return m;
@@ -54,6 +74,10 @@ class WsAction {
 
   @override
   String toString() {
+    if (this.error != null) {
+    return "WsAction id: ${this.id} action: ${this.action} payload: ${this.payload} error: ${this.error}";
+    } else {
     return "WsAction id: ${this.id} action: ${this.action} payload: ${this.payload} result: ${this.result}";
+    }
   }
 }
