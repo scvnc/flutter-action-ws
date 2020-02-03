@@ -6,8 +6,8 @@ A new Flutter package project.
 
 ```dart
 // get the cookie needed to connect to websocket
-var c = await requestUrlencoded('$endpoint/auth/gateway/login', 'test-user', '123tree');
-WsConnectionService.url = 'wss://promedstaging.parsesoftwaredevelopment.com/ws/';
+var c = await requestUrlencoded('https://$domain/auth/gateway/login', 'some-iser', 'somepw');
+WsConnectionService.url = 'wss://$domain/ws/';
 WsConnectionService.tokenCookie = c;
 var wsCon = new WsConnectionService();
 
