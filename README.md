@@ -2,13 +2,25 @@
 
 A new Flutter package project.
 
-## Getting Started
+## Example
 
-This project is a starting point for a Dart
-[package](https://flutter.dev/developing-packages/),
-a library module containing code that can be shared easily across
-multiple Flutter or Dart projects.
+```dart
+// get the cookie needed to connect to websocket
+var c = await requestUrlencoded('$endpoint/auth/gateway/login', 'test-user', '123tree');
+WsConnectionService.url = 'wss://promedstaging.parsesoftwaredevelopment.com/ws/';
+WsConnectionService.tokenCookie = c;
+var wsCon = new WsConnectionService();
 
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.dev/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
+// observe the connection status
+Observable<WsConnectionStatus> obs = wsCon.statusObs();
+obs.forEach((WsConnectionStatus c) {
+  print("-- WsConnectionStatus: $c");
+});
+
+try {
+  dynamic r = await wsCon.actionFut('ListClients', {'arg1': 1});
+  print("FUTURE IS DONE!! $r");
+} catch (e) {
+  print("horrors $e");
+}
+```
