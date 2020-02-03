@@ -10,13 +10,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cbor: ^2.0.5
+  rx_command: "^4.3.2+1"
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  cbor: ^2.0.5
   maybe: ^0.4.0
-  rx_command: "^4.3.2+1"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
