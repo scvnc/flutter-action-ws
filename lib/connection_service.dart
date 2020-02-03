@@ -181,8 +181,6 @@ class WsConnectionService {
       if (ar.status == ActionRequestStatus.OK) {
         c.complete(ar.action as dynamic);
       } else if (ar.status == ActionRequestStatus.ERROR) {
-        print("there was an error: $ar");
-        //throw ("Error processing this action");
         c.completeError(new ActionResponseException(ar.action, ar.action.error));
       } else {
         throw new Exception("Unhandled ActionRequestStatus");
