@@ -21,6 +21,7 @@ try {
   dynamic r = await wsCon.actionFut('ListClients', {'arg1': 1});
   print("FUTURE IS DONE!! $r");
 } catch (e) {
+  // ActionResponseException or Exception
   print("horrors $e");
 }
 ```
