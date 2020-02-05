@@ -128,8 +128,11 @@ class WsConnectionService {
             }
           } else if (message is String) {
             //print("TODO: decode this: $message");
+            print("Ws: Ignoring a text based message");
+            /*
             _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
                     message: "Received a String message which is not supported"));
+                    */
           } else {
             _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
                     message: "Unhandled message type"));
@@ -161,10 +164,9 @@ class WsConnectionService {
     var id = _getNextId();
     WsAction m = new WsAction(id, actionName);
     m.payload = payload;
-    print("#k action request cmd");
     _actionRequestCmd(ActionRequest(ActionRequestStatus.NEW, m));
 
-    if (connectionStatus.status == WsStatusType.DISCONNECTED) {
+    if (connectionStatus.status == WsStatusType.DISCONNECTED || connectionStatus.status == WsStatusType.ERROR) {
       connect();
     } else {
       _sendAllInQueue();
