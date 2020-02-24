@@ -182,9 +182,9 @@ class WsConnectionService {
       if (ar.status == ActionRequestStatus.OK) {
         c.complete(ar.action);
       } else if (ar.status == ActionRequestStatus.ERROR) {
-        throw new ActionResponseException(ar.action, ar.action.error);
+        c.completeError(ActionResponseException(ar.action, ar.action.error));
       } else {
-        throw new Exception("Unhandled ActionRequestStatus");
+        c.completeError("Unhandled ActionRequestStatus");
       }
     });
     return c.future;
