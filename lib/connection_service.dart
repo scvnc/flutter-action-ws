@@ -174,16 +174,15 @@ class WsConnectionService {
     return id;
   }
 
-  /// throws ActionResponseException, and a generic Exception for unhandled ActionRequestStatus
-  Future<dynamic> actionFut(String actionName, Map<String, dynamic> payload) {
-    Completer c = new Completer();
+  Future<WsAction> actionFut(String actionName, Map<String, dynamic> payload) {
+    Completer c = new Completer<WsAction>();
     int id = _pushAction(actionName, payload);
     /// TODO: this should be changed to ActionResponse instead of ActionRequest
     onResponse(id, (ActionRequest ar) {
       if (ar.status == ActionRequestStatus.OK) {
-        c.complete(ar.action as dynamic);
+        c.complete(ar.action);
       } else if (ar.status == ActionRequestStatus.ERROR) {
-        c.completeError(new ActionResponseException(ar.action, ar.action.error));
+        throw new ActionResponseException(ar.action, ar.action.error);
       } else {
         throw new Exception("Unhandled ActionRequestStatus");
       }
