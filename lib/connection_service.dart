@@ -78,7 +78,7 @@ class WsConnectionService {
   }
 
   WsConnectionService() {
-    print("WsConnectionService constructor.  Url: $url");
+
     _connect();
   }
 
@@ -97,7 +97,7 @@ class WsConnectionService {
       Map<String, dynamic> headers = {
         "Cookie": WsConnectionService.tokenCookie,
       };
-      print(" ## WsConnectionService.connect url: $url, headers: $headers");
+
       _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTING));
       await WebSocket.connect(url, headers: headers).then((c) {
         _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTED));
@@ -111,7 +111,7 @@ class WsConnectionService {
           if (message is List<int>) {
             try {
               var responseWsAction = WsAction.fromBytes(Uint8List.fromList(message));
-              print("responseWsAction $responseWsAction");
+
               var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
               responseWsAction.payload = queuedActionRequest.action.payload;
               _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
@@ -120,15 +120,15 @@ class WsConnectionService {
             } catch (e) {
               // TODO
               if (e is ActionResponseException) {
-                print("====: $e tried: $message");
+
                 _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
               } else {
-                print("Error decoding action: $e tried: $message");
+
               }
             }
           } else if (message is String) {
-            //print("TODO: decode this: $message");
-            print("Ws: Ignoring a text based message");
+
+
             /*
             _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
                     message: "Received a String message which is not supported"));
@@ -144,7 +144,7 @@ class WsConnectionService {
         });
       });
     } catch (e) {
-      print("WsConnection failed handshake");
+
       _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
     }
   }
@@ -220,7 +220,7 @@ class WsConnectionService {
   }
 
   _handleReplyFunctionTimeout(ActionRequest ar) {
-    print("this function is nono $ar");
+
   }
 
   checkForTimedoutActions() {
@@ -229,7 +229,7 @@ class WsConnectionService {
     queue.forEach((int aId, ActionRequest ar) {
       int diff = now.difference(ar.requestedOn).inSeconds;
       if (diff > timeoutSeconds) {
-        print("TODO: TIMED OUT HOLY SMOKES!!!");
+
         ar.status = ActionRequestStatus.TIMEDOUT;
         _handleReplyFunctionTimeout(ar);
       }
