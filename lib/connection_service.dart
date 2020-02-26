@@ -82,14 +82,23 @@ class WsConnectionService {
     _connect();
   }
 
-  connect() {
+  connect() async {
     switch(connectionStatus.status) {
       case WsStatusType.DISCONNECTED:
-        _connect();
+        await _connect();
         break;
       default:
         break;
     }
+  }
+
+  Future<void> disconnect() async {
+    if(_ws == null) {
+      return;
+    }
+
+    _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
+    await _ws.close();
   }
 
   _connect() async {
@@ -99,52 +108,51 @@ class WsConnectionService {
       };
 
       _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTING));
-      await WebSocket.connect(url, headers: headers).then((c) {
-        _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTED));
-        _ws = c;
+      var c = await WebSocket.connect(url, headers: headers);
 
-        _sendAllInQueue();
-        checkForTimedoutActions();
+      _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTED));
+      _ws = c;
 
-        // NOTE: there is optional: onError, onDone, bool: cancelOnError
-        _ws.listen((message) {
-          if (message is List<int>) {
-            try {
-              var responseWsAction = WsAction.fromBytes(Uint8List.fromList(message));
+      _sendAllInQueue();
+      checkForTimedoutActions();
 
-              var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
-              responseWsAction.payload = queuedActionRequest.action.payload;
-              _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
-              _handleReplyRxCommand(responseWsAction);
-              _handleReplyFunction(ActionRequest(ActionRequestStatus.OK, responseWsAction));
-            } catch (e) {
-              // TODO
-              if (e is ActionResponseException) {
+      // NOTE: there is optional: onError, onDone, bool: cancelOnError
+      _ws.listen((message) {
+        if (message is List<int>) {
+          try {
+            var responseWsAction = WsAction.fromBytes(Uint8List.fromList(message));
 
-                _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
-              } else {
+            var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
+            responseWsAction.payload = queuedActionRequest.action.payload;
+            _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
+            _handleReplyRxCommand(responseWsAction);
+            _handleReplyFunction(ActionRequest(ActionRequestStatus.OK, responseWsAction));
+          } catch (e) {
+            // TODO
+            if (e is ActionResponseException) {
+              _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
+            } else {
 
-              }
             }
-          } else if (message is String) {
-
-
-            /*
-            _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
-                    message: "Received a String message which is not supported"));
-                    */
-          } else {
-            _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
-                    message: "Unhandled message type"));
           }
-        }, onDone: () {
-          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
-        }, onError: (e) {
-          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR, message: "$e"));
-        });
-      });
-    } catch (e) {
+        } else if (message is String) {
 
+
+          /*
+          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
+                  message: "Received a String message which is not supported"));
+                  */
+        } else {
+          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
+                  message: "Unhandled message type"));
+        }
+      }, onDone: () {
+        _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
+      }, onError: (e) {
+        _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR, message: "$e"));
+      });
+
+    } catch (e) {
       _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
     }
   }
