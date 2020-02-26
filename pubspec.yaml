@@ -12,4 +12,5 @@ dependencies:
   rx_command: "^4.3.2+1"
 
 dev_dependencies:
+  test:
   maybe: ^0.4.0
