@@ -160,8 +160,8 @@ class WsConnectionService {
   void _sendAllInQueue() {
     queue.forEach((id, reqAction) {
       if (reqAction.status == ActionRequestStatus.NEW) {
-        reqAction.status = ActionRequestStatus.START;
         if (connectionStatus.status == WsStatusType.CONNECTED) {
+          reqAction.status = ActionRequestStatus.START;
           _ws.add(reqAction.action.asBytes());
         }
       }
