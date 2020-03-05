@@ -78,18 +78,27 @@ class WsConnectionService {
   }
 
   WsConnectionService() {
-    print("WsConnectionService constructor.  Url: $url");
+
     _connect();
   }
 
-  connect() {
+  connect() async {
     switch(connectionStatus.status) {
       case WsStatusType.DISCONNECTED:
-        _connect();
+        await _connect();
         break;
       default:
         break;
     }
+  }
+
+  Future<void> disconnect() async {
+    if(_ws == null) {
+      return;
+    }
+
+    _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
+    await _ws.close();
   }
 
   _connect() async {
@@ -97,54 +106,53 @@ class WsConnectionService {
       Map<String, dynamic> headers = {
         "Cookie": WsConnectionService.tokenCookie,
       };
-      print(" ## WsConnectionService.connect url: $url, headers: $headers");
+
       _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTING));
-      await WebSocket.connect(url, headers: headers).then((c) {
-        _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTED));
-        _ws = c;
+      var c = await WebSocket.connect(url, headers: headers);
 
-        _sendAllInQueue();
-        checkForTimedoutActions();
+      _connectionStatusCmd(new WsConnectionStatus(WsStatusType.CONNECTED));
+      _ws = c;
 
-        // NOTE: there is optional: onError, onDone, bool: cancelOnError
-        _ws.listen((message) {
-          if (message is List<int>) {
-            try {
-              var responseWsAction = WsAction.fromBytes(Uint8List.fromList(message));
-              print("responseWsAction $responseWsAction");
-              var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
-              responseWsAction.payload = queuedActionRequest.action.payload;
-              _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
-              _handleReplyRxCommand(responseWsAction);
-              _handleReplyFunction(ActionRequest(ActionRequestStatus.OK, responseWsAction));
-            } catch (e) {
-              // TODO
-              if (e is ActionResponseException) {
-                print("====: $e tried: $message");
-                _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
-              } else {
-                print("Error decoding action: $e tried: $message");
-              }
+      _sendAllInQueue();
+      checkForTimedoutActions();
+
+      // NOTE: there is optional: onError, onDone, bool: cancelOnError
+      _ws.listen((message) {
+        if (message is List<int>) {
+          try {
+            var responseWsAction = WsAction.fromBytes(Uint8List.fromList(message));
+
+            var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
+            responseWsAction.payload = queuedActionRequest.action.payload;
+            _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
+            _handleReplyRxCommand(responseWsAction);
+            _handleReplyFunction(ActionRequest(ActionRequestStatus.OK, responseWsAction));
+          } catch (e) {
+            // TODO
+            if (e is ActionResponseException) {
+              _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
+            } else {
+
             }
-          } else if (message is String) {
-            //print("TODO: decode this: $message");
-            print("Ws: Ignoring a text based message");
-            /*
-            _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
-                    message: "Received a String message which is not supported"));
-                    */
-          } else {
-            _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
-                    message: "Unhandled message type"));
           }
-        }, onDone: () {
-          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
-        }, onError: (e) {
-          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR, message: "$e"));
-        });
+        } else if (message is String) {
+
+
+          /*
+          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
+                  message: "Received a String message which is not supported"));
+                  */
+        } else {
+          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
+                  message: "Unhandled message type"));
+        }
+      }, onDone: () {
+        _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
+      }, onError: (e) {
+        _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR, message: "$e"));
       });
+
     } catch (e) {
-      print("WsConnection failed handshake");
       _connectionStatusCmd(new WsConnectionStatus(WsStatusType.DISCONNECTED));
     }
   }
@@ -152,8 +160,8 @@ class WsConnectionService {
   void _sendAllInQueue() {
     queue.forEach((id, reqAction) {
       if (reqAction.status == ActionRequestStatus.NEW) {
-        reqAction.status = ActionRequestStatus.START;
         if (connectionStatus.status == WsStatusType.CONNECTED) {
+          reqAction.status = ActionRequestStatus.START;
           _ws.add(reqAction.action.asBytes());
         }
       }
@@ -174,18 +182,17 @@ class WsConnectionService {
     return id;
   }
 
-  /// throws ActionResponseException, and a generic Exception for unhandled ActionRequestStatus
-  Future<dynamic> actionFut(String actionName, Map<String, dynamic> payload) {
-    Completer c = new Completer();
+  Future<WsAction> actionFut(String actionName, Map<String, dynamic> payload) {
+    Completer c = new Completer<WsAction>();
     int id = _pushAction(actionName, payload);
     /// TODO: this should be changed to ActionResponse instead of ActionRequest
     onResponse(id, (ActionRequest ar) {
       if (ar.status == ActionRequestStatus.OK) {
-        c.complete(ar.action as dynamic);
+        c.complete(ar.action);
       } else if (ar.status == ActionRequestStatus.ERROR) {
-        c.completeError(new ActionResponseException(ar.action, ar.action.error));
+        c.completeError(ActionResponseException(ar.action, ar.action.error));
       } else {
-        throw new Exception("Unhandled ActionRequestStatus");
+        c.completeError("Unhandled ActionRequestStatus");
       }
     });
     return c.future;
@@ -220,7 +227,7 @@ class WsConnectionService {
   }
 
   _handleReplyFunctionTimeout(ActionRequest ar) {
-    print("this function is nono $ar");
+
   }
 
   checkForTimedoutActions() {
@@ -229,7 +236,7 @@ class WsConnectionService {
     queue.forEach((int aId, ActionRequest ar) {
       int diff = now.difference(ar.requestedOn).inSeconds;
       if (diff > timeoutSeconds) {
-        print("TODO: TIMED OUT HOLY SMOKES!!!");
+
         ar.status = ActionRequestStatus.TIMEDOUT;
         _handleReplyFunctionTimeout(ar);
       }

@@ -17,9 +17,9 @@ Future<String> requestUrlencoded(String url, String username, String password) a
   HttpClient httpClient = new HttpClient();
   HttpClientRequest request = await httpClient.postUrl(Uri.parse(url));
   request.headers.set('content-type', 'application/x-www-form-urlencoded');
-  //print("post url: $url");
+
   String formBody = "username=${Uri.encodeQueryComponent(username)}&password=${Uri.encodeQueryComponent(password)}";
-  //print(formBody);
+
   List<int> bodyBytes = utf8.encode(formBody);
   request.headers.set('Content-Length', bodyBytes.length.toString());
   request.add(bodyBytes);
@@ -28,12 +28,12 @@ Future<String> requestUrlencoded(String url, String username, String password) a
     throw new BadLoginException("Server responded with statusCode of 500");
   }
   try {
-    //print("response ${response.cookies[0]}");
-    print("response code ${response.statusCode}");
+
+
     // todo - you should check the response.statusCode
     String reply = await response.transform(utf8.decoder).join();
     httpClient.close();
-    print("response body $reply");
+
     return "${response.cookies[0]}".split(";")[0];
   } catch (e) {
     throw new BadLoginException("There was an error parsing for the cookie: $e");

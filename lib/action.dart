@@ -44,12 +44,7 @@ class WsAction {
       'action': action,
       'payload': payload,
     });
-    //print("############# AS BYTES #############");
-    //print("Message.asBytes");
-    //inst.output.pause();
     inst.decodeFromInput();
-    //print(inst.decodedPrettyPrint(true));
-    //print(inst.decodedToJSON());
     Uint8Buffer data = inst.output.getData();
     return data;
   }
@@ -61,7 +56,7 @@ class WsAction {
     cbor.Cbor inst = new cbor.Cbor();
     inst.decodeFromBuffer(buf);
     var msg = inst.getDecodedData()[0];
-    print("MSG: $msg");
+
     WsAction m = new WsAction(msg['id'] as int, msg['action'] as String);
     if (msg.containsKey('error')) {
       m.error = msg['error'] as String;
