@@ -1,6 +1,7 @@
 import 'package:typed_data/typed_data.dart';
 import 'dart:typed_data';
 import 'package:cbor/cbor.dart' as cbor;
+import 'dart:convert';
 
 class ActionResponseException implements Exception {
   WsAction action;
@@ -32,6 +33,9 @@ class WsAction {
     if (m.containsKey('error')) {
       msg.error = m['error'];
     }
+    if (m.containsKey('result')) {
+      msg.result = m['result'];
+    }
     return msg;
   }
 
@@ -49,12 +53,22 @@ class WsAction {
     return data;
   }
 
+  String asString() {
+    return json.encode({
+      'id': id,
+      'action': action,
+      'payload': payload,
+    });
+  }
+
   /// construct this message from cbor bytes
+  /// NOTE: for some reason it doesn't decode the whole thing
+  /// moving away from cbor at this point but leaving this intact for now
   static WsAction fromBytes(Uint8List b) {
-    Uint8Buffer buf = new Uint8Buffer();
-    b.forEach((e) => buf.add(e));
+    //Uint8Buffer buf = new Uint8Buffer();
+    //b.forEach((e) => buf.add(e));
     cbor.Cbor inst = new cbor.Cbor();
-    inst.decodeFromBuffer(buf);
+    inst.decodeFromList(b);
     var msg = inst.getDecodedData()[0];
 
     WsAction m = new WsAction(msg['id'] as int, msg['action'] as String);

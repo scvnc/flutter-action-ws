@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:rxdart/rxdart.dart';
 import 'dart:async';
 import './action.dart';
+import 'dart:convert';
 
 enum WsStatusType { ERROR, DISCONNECTED, CONNECTED, CONNECTING }
 
@@ -136,12 +137,20 @@ class WsConnectionService {
             }
           }
         } else if (message is String) {
+          try {
+            var responseWsAction = WsAction.fromMap(json.decode(message));
+            var queuedActionRequest = WsConnectionService._removeFromQueue(responseWsAction.id);
+            responseWsAction.payload = queuedActionRequest.action.payload;
+            _actionRequestCmd(ActionRequest(ActionRequestStatus.OK, responseWsAction));
+            _handleReplyRxCommand(responseWsAction);
+            _handleReplyFunction(ActionRequest(ActionRequestStatus.OK, responseWsAction));
+          } catch (e) {
+            if (e is ActionResponseException) {
+              _handleReplyFunction(ActionRequest(ActionRequestStatus.ERROR, e.action));
+            } else {
 
-
-          /*
-          _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
-                  message: "Received a String message which is not supported"));
-                  */
+            }
+          }
         } else {
           _connectionStatusCmd(new WsConnectionStatus(WsStatusType.ERROR,
                   message: "Unhandled message type"));
@@ -162,7 +171,8 @@ class WsConnectionService {
       if (reqAction.status == ActionRequestStatus.NEW) {
         if (connectionStatus.status == WsStatusType.CONNECTED) {
           reqAction.status = ActionRequestStatus.START;
-          _ws.add(reqAction.action.asBytes());
+          //_ws.add(reqAction.action.asBytes());
+          _ws.add(reqAction.action.asString());
         }
       }
     });
